@@ -1,0 +1,11 @@
+{
+  "name": "@app/shared",
+  "version": "1.0.0",
+  "description": "Shared event constants, DTO schemas, and helper utilities for microservices",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./*": "./src/*"
+  },
+  "type": "commonjs"
+}

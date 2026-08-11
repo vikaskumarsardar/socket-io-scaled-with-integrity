@@ -1,0 +1,21 @@
+{
+  "name": "microservices-mvp-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "NPM Workspaces Monorepo for Scalable Socket.IO Architecture with Outbox Pattern and Debezium CDC",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "start:gateway": "npm run start --workspace=socket-gateway",
+    "start:chat": "npm run start --workspace=chat-service",
+    "start:client": "npm run start --workspace=client-demo",
+    "dev:services": "concurrently \"npm run start:chat\" \"npm run start:gateway\"",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
