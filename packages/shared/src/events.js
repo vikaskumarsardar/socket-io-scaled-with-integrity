@@ -2,8 +2,10 @@
 
 const EVENT_TYPES = {
   NEW_MESSAGE: "NEW_MESSAGE",
+  SEND_MESSAGE: "SEND_MESSAGE",
   USER_TYPING: "USER_TYPING",
-  USER_JOINED: "USER_JOINED"
+  USER_JOINED: "USER_JOINED",
+  WEBRTC_SIGNAL: "WEBRTC_SIGNAL"
 };
 
 const ROOMS = {
@@ -21,13 +23,14 @@ const RECOVERY_CONFIG = {
   STREAM_M_MAX_LEN_THRESHOLD: 100
 };
 
-function createOutboxPayload(messageId, sequenceId, roomId, senderId, content) {
+function createOutboxPayload(messageId, sequenceId, roomId, senderId, content, sentAt = null) {
   return {
     messageId,
     sequenceId: parseInt(sequenceId, 10),
     roomId,
     senderId,
     content,
+    sentAt: sentAt ? parseInt(sentAt, 10) : Date.now(),
     createdAt: new Date().toISOString()
   };
 }

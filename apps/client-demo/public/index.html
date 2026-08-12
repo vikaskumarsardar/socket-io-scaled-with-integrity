@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scalable Socket.IO Microservices Demo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="http://localhost:3000/socket.io/socket.io.js"></script>
+
+  <style>
+    :root {
+      --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+      --panel-bg: rgba(30, 41, 59, 0.7);
+      --panel-border: rgba(255, 255, 255, 0.1);
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --accent: #10b981;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-gradient);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header Bar */
+    header {
+      background: rgba(15, 23, 42, 0.8);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--panel-border);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo-area {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .logo-badge {
+      background: linear-gradient(135deg, #6366f1, #a855f7);
+      color: white;
+      font-weight: 700;
+      padding: 0.35rem 0.75rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      letter-spacing: 0.05em;
+    }
+
+    .header-title {
+      font-size: 1.2rem;
+      font-weight: 600;
+    }
+
+    .status-container {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--panel-border);
+      padding: 0.4rem 0.85rem;
+      border-radius: 50px;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--danger);
+    }
+
+    .status-dot.connected {
+      background: var(--accent);
+      box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+    }
+
+    /* Layout Main */
+    main {
+      flex: 1;
+      max-width: 1200px;
+      width: 100%;
+      margin: 2rem auto;
+      padding: 0 1.5rem;
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 1.5rem;
+    }
+
+    /* Side Control Panel */
+    .control-panel {
+      background: var(--panel-bg);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--panel-border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .section-title {
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    input, select {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--panel-border);
+      color: var(--text-main);
+      padding: 0.75rem 1rem;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-family: inherit;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    }
+
+    .btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 0.75rem 1.25rem;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    .btn:hover {
+      background: var(--primary-hover);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--panel-border);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .btn-warning {
+      background: var(--warning);
+      color: #0f172a;
+    }
+
+    .btn-warning:hover {
+      filter: brightness(1.1);
+    }
+
+    /* Chat Area */
+    .chat-container {
+      background: var(--panel-bg);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--panel-border);
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      height: 680px;
+      overflow: hidden;
+    }
+
+    .chat-header {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--panel-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(15, 23, 42, 0.4);
+    }
+
+    .room-info {
+      font-weight: 600;
+      font-size: 1.1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .messages-list {
+      flex: 1;
+      padding: 1.5rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    /* Single Message Bubble */
+    .message-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      max-width: 75%;
+      align-self: flex-start;
+      animation: fadeIn 0.25s ease-out;
+    }
+
+    .message-item.own {
+      align-self: flex-end;
+    }
+
+    .message-meta {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .seq-tag {
+      font-family: 'JetBrains Mono', monospace;
+      background: rgba(99, 102, 241, 0.2);
+      color: #a5b4fc;
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+    }
+
+    .message-bubble {
+      background: rgba(30, 41, 59, 0.9);
+      border: 1px solid var(--panel-border);
+      padding: 0.85rem 1.1rem;
+      border-radius: 14px;
+      border-top-left-radius: 2px;
+      font-size: 0.95rem;
+      line-height: 1.5;
+      word-break: break-word;
+    }
+
+    .message-item.own .message-bubble {
+      background: linear-gradient(135deg, #4f46e5, #6366f1);
+      border: none;
+      border-radius: 14px;
+      border-top-right-radius: 2px;
+    }
+
+    /* Typing Indicator */
+    .typing-bar {
+      padding: 0.5rem 1.5rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-style: italic;
+      min-height: 2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .typing-dots {
+      display: flex;
+      gap: 3px;
+    }
+
+    .typing-dot {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      animation: blink 1.4s infinite both;
+    }
+
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+    /* Input Footer */
+    .chat-footer {
+      padding: 1.25rem 1.5rem;
+      border-top: 1px solid var(--panel-border);
+      background: rgba(15, 23, 42, 0.4);
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    .chat-footer input {
+      flex: 1;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes blink {
+      0%, 80%, 100% { opacity: 0.2; }
+      40% { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header Bar -->
+  <header>
+    <div class="logo-area">
+      <span class="logo-badge">SOCKET.IO + CDC</span>
+      <h1 class="header-title">Real-Time Event Architecture</h1>
+    </div>
+
+    <div class="status-container">
+      <div class="status-pill">
+        <div id="statusDot" class="status-dot"></div>
+        <span id="statusText">Disconnected</span>
+      </div>
+
+      <div class="status-pill">
+        <span style="color: var(--text-muted);">Recovery Mode:</span>
+        <span id="recoveryBadge" style="color: var(--accent); font-weight: 600;">--</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Grid -->
+  <main>
+    <!-- Left Sidebar Control Panel -->
+    <aside class="control-panel">
+      <div>
+        <div class="section-title">1. User Handshake Identity</div>
+        <div class="form-group">
+          <label>Select Active User:</label>
+          <select id="userSelect">
+            <option value="user_alice">Alice (user_alice)</option>
+            <option value="user_bob">Bob (user_bob)</option>
+            <option value="user_charlie">Charlie (user_charlie)</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-title">2. Disconnect & Recovery Test</div>
+        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+          <button id="toggleConnectBtn" class="btn btn-secondary">Connect Socket</button>
+          <button id="simBlipBtn" class="btn btn-warning">⚡ Simulate 10s Network Blip</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-title">3. REST Sync Fallback</div>
+        <button id="syncRestBtn" class="btn btn-secondary" style="width: 100%;">
+          🔄 Fetch Missing History (REST)
+        </button>
+      </div>
+
+      <div style="margin-top: auto; font-size: 0.75rem; color: var(--text-muted); line-height: 1.4;">
+        💡 <strong>Architecture Flow:</strong><br>
+        POST REST API ➔ Postgres Outbox ➔ Debezium CDC ➔ Kafka ➔ Socket Gateway ➔ WebSocket Emit!
+      </div>
+    </aside>
+
+    <!-- Right Chat Panel -->
+    <section class="chat-container">
+      <div class="chat-header">
+        <div class="room-info">
+          <span>💬</span> #room_general
+        </div>
+        <span id="socketIdTag" style="font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: var(--text-muted);">
+          Socket ID: --
+        </span>
+      </div>
+
+      <!-- Messages Stream -->
+      <div id="messagesList" class="messages-list"></div>
+
+      <!-- Typing Indicator -->
+      <div class="typing-bar">
+        <div id="typingIndicator" style="display: none; align-items: center; gap: 0.5rem;">
+          <div class="typing-dots">
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+          </div>
+          <span id="typingUserText">Someone is typing...</span>
+        </div>
+      </div>
+
+      <!-- Send Form -->
+      <form id="chatForm" class="chat-footer">
+        <input type="text" id="messageInput" placeholder="Type a chat message..." autocomplete="off">
+        <button type="submit" class="btn">Send Message</button>
+      </form>
+    </section>
+  </main>
+
+  <script>
+    const GATEWAY_URL = "http://localhost:3000";
+    const CHAT_SERVICE_URL = "http://localhost:4000";
+
+    let socket = null;
+    let currentUser = "user_alice";
+    let lastSeenSeq = parseInt(localStorage.getItem(`chat_last_seq_${currentUser}`) || "0", 10);
+    const clientMessageMap = new Map();
+
+    // DOM Elements
+    const statusDot = document.getElementById("statusDot");
+    const statusText = document.getElementById("statusText");
+    const recoveryBadge = document.getElementById("recoveryBadge");
+    const socketIdTag = document.getElementById("socketIdTag");
+    const userSelect = document.getElementById("userSelect");
+    const toggleConnectBtn = document.getElementById("toggleConnectBtn");
+    const simBlipBtn = document.getElementById("simBlipBtn");
+    const syncRestBtn = document.getElementById("syncRestBtn");
+    const messagesList = document.getElementById("messagesList");
+    const chatForm = document.getElementById("chatForm");
+    const messageInput = document.getElementById("messageInput");
+    const typingIndicator = document.getElementById("typingIndicator");
+    const typingUserText = document.getElementById("typingUserText");
+
+    // Initialize Connection
+    function initSocket(userId) {
+      if (socket) {
+        socket.disconnect();
+      }
+
+      currentUser = userId;
+
+      socket = io(GATEWAY_URL, {
+        transports: ["websocket"],
+        auth: { 
+          userId: currentUser,
+          serverOffset: lastSeenSeq > 0 ? String(lastSeenSeq) : undefined
+        },
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 10000,
+        randomizationFactor: 0.5
+      });
+
+      socket.on("connect", () => {
+        statusDot.classList.add("connected");
+        statusText.textContent = "Connected (WebSockets)";
+        socketIdTag.textContent = `Socket ID: ${socket.id}`;
+        toggleConnectBtn.textContent = "Disconnect Socket";
+
+        if (socket.recovered) {
+          recoveryBadge.textContent = "Socket State Recovered ✨";
+          recoveryBadge.style.color = "#10b981";
+        } else {
+          recoveryBadge.textContent = "Fresh Connection 🔄";
+          recoveryBadge.style.color = "#6366f1";
+          fetchRestSync();
+        }
+      });
+
+      socket.on("disconnect", (reason) => {
+        statusDot.classList.remove("connected");
+        statusText.textContent = `Disconnected (${reason})`;
+        socketIdTag.textContent = "Socket ID: --";
+        toggleConnectBtn.textContent = "Connect Socket";
+      });
+
+      // 1. Listen for Non-Ephemeral Chat Messages
+      socket.on("new_message", (msg) => renderMessage(msg));
+      socket.on("NEW_MESSAGE", (msg) => renderMessage(msg));
+
+      // 2. Listen for Ephemeral Typing Indicator
+      let typingTimer = null;
+      socket.on("USER_TYPING", (data) => {
+        if (data.userId !== currentUser) {
+          typingUserText.textContent = `${data.userId} is typing...`;
+          typingIndicator.style.display = "flex";
+          clearTimeout(typingTimer);
+          typingTimer = setTimeout(() => {
+            typingIndicator.style.display = "none";
+          }, 3000);
+        }
+      });
+    }
+
+    // Render Message to UI
+    function renderMessage(msg) {
+      const seqId = parseInt(msg.sequenceId || msg.sequence_id, 10);
+      if (clientMessageMap.has(seqId)) return; // Idempotent deduplication
+
+      clientMessageMap.set(seqId, msg);
+      if (seqId > lastSeenSeq) {
+        lastSeenSeq = seqId;
+        localStorage.setItem(`chat_last_seq_${currentUser}`, lastSeenSeq);
+      }
+
+      const isOwn = (msg.senderId || msg.sender_id) === currentUser;
+      const msgDiv = document.createElement("div");
+      msgDiv.className = `message-item ${isOwn ? 'own' : ''}`;
+
+      const timeStr = new Date(msg.createdAt || msg.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+      msgDiv.innerHTML = `
+        <div class="message-meta">
+          <span class="seq-tag">Seq #${seqId}</span>
+          <span>${msg.senderId || msg.sender_id}</span>
+          <span>${timeStr}</span>
+        </div>
+        <div class="message-bubble">${escapeHtml(msg.content)}</div>
+      `;
+
+      messagesList.appendChild(msgDiv);
+      messagesList.scrollTop = messagesList.scrollHeight;
+    }
+
+    // Fetch Message History via REST API Sync (Initial Load & Catch-Up)
+    async function fetchRestSync(forceAll = false) {
+      try {
+        const fetchSince = (forceAll || clientMessageMap.size === 0) ? 0 : lastSeenSeq;
+        const res = await fetch(`${CHAT_SERVICE_URL}/api/v1/messages/sync?roomId=room_general&since=${fetchSince}`);
+        const data = await res.json();
+        if (data.messages && Array.isArray(data.messages)) {
+          data.messages.forEach(msg => renderMessage(msg));
+        }
+      } catch (err) {
+        console.error("REST sync failed:", err);
+      }
+    }
+
+    // Emit Ephemeral Typing Signal
+    let emitTypingTimer = null;
+    messageInput.addEventListener("input", () => {
+      if (!socket || !socket.connected) return;
+      if (!emitTypingTimer) {
+        socket.volatile.emit("USER_TYPING", { roomId: "room_general" });
+        emitTypingTimer = setTimeout(() => { emitTypingTimer = null; }, 2000);
+      }
+    });
+
+    // Send Message Handler (Direct REST API Ingestion -> Postgres Outbox -> CDC)
+    chatForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const content = messageInput.value.trim();
+      if (!content) return;
+
+      messageInput.value = "";
+
+      try {
+        const res = await fetch(`${CHAT_SERVICE_URL}/api/v1/messages`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            roomId: "room_general",
+            senderId: currentUser,
+            content: content
+          })
+        });
+        const data = await res.json();
+        if (!data.success) {
+          alert("Failed to send message: " + JSON.stringify(data));
+        }
+      } catch (err) {
+        alert("Error sending message to Chat Service REST API: " + err.message);
+      }
+    });
+
+    // Control Handlers
+    userSelect.addEventListener("change", (e) => {
+      initSocket(e.target.value);
+    });
+
+    toggleConnectBtn.addEventListener("click", () => {
+      if (socket && socket.connected) {
+        socket.disconnect();
+      } else {
+        initSocket(userSelect.value);
+      }
+    });
+
+    simBlipBtn.addEventListener("click", () => {
+      if (!socket || !socket.connected) return;
+      statusText.textContent = "Simulating 10s Network Blip (Offline)...";
+      
+      // 1. Set reconnection delay to 10 seconds so it waits 10s before auto-reconnecting
+      socket.io.reconnectionDelay(10000);
+      
+      // 2. Close underlying WebSocket transport (triggers transport close while keeping session pid)
+      if (socket.io.engine && socket.io.engine.transport) {
+        socket.io.engine.transport.close();
+      } else if (socket.io.engine) {
+        socket.io.engine.close();
+      }
+
+      // Reset delay back to 1s after 12 seconds
+      setTimeout(() => {
+        if (socket.io) socket.io.reconnectionDelay(1000);
+      }, 12000);
+    });
+
+    syncRestBtn.addEventListener("click", () => fetchRestSync(true));
+
+    function escapeHtml(text) {
+      return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    // Auto-connect on load
+    initSocket("user_alice");
+  </script>
+</body>
+</html>

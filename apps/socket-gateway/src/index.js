@@ -1,7 +1,8 @@
 const http = require("http");
 const express = require("express");
+const cors = require("cors");
 const { Server } = require("socket.io");
-const { createClusterAdapter } = require("@socket.io/redis-streams-adapter");
+const { createAdapter } = require("@socket.io/redis-streams-adapter");
 const { Redis } = require("ioredis");
 const { Kafka } = require("kafkajs");
 const jwt = require("jsonwebtoken");
@@ -9,6 +10,7 @@ const { RateLimiterMemory } = require("rate-limiter-flexible");
 const { EVENT_TYPES, ROOMS, KAFKA_CONFIG, RECOVERY_CONFIG } = require("@app/shared");
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 const httpServer = http.createServer(app);
 
@@ -17,44 +19,42 @@ const JWT_SECRET = process.env.JWT_SECRET || "dev_jwt_secret_key_super_secure_12
 // -----------------------------------------------------------------------------
 // 1. Redis Streams Adapter Setup (Connection State Recovery)
 // -----------------------------------------------------------------------------
-let adapterOptions = {};
-try {
-  const redisClient = new Redis({
-    host: process.env.REDIS_HOST || "127.0.0.1",
-    port: parseInt(process.env.REDIS_PORT || "6379", 10),
-    lazyConnect: true,
-    maxRetriesPerRequest: 1
-  });
+const pubClient = new Redis({
+  host: process.env.REDIS_HOST || "127.0.0.1",
+  port: parseInt(process.env.REDIS_PORT || "6379", 10)
+});
+const subClient = pubClient.duplicate();
 
-  redisClient.connect().then(() => {
-    console.log("[Redis Adapter] Connected to Redis Streams!");
-  }).catch(() => {
-    console.log("[Redis Adapter] Redis unavailable locally. Falling back to in-memory adapter.");
-  });
+pubClient.on("connect", () => {
+  console.log("[Redis Adapter] Connected to Redis Streams (Pub/Sub active)!");
+});
 
-  adapterOptions = {
-    adapter: createClusterAdapter(redisClient, {
-      streamMaxLen: RECOVERY_CONFIG.STREAM_MAX_LEN,
-      mMaxLenThreshold: RECOVERY_CONFIG.STREAM_M_MAX_LEN_THRESHOLD
-    })
-  };
-} catch (e) {
-  console.log("[Redis Adapter] In-memory fallback.");
-}
+pubClient.on("error", (err) => {
+  console.warn("[Redis Adapter Warning]", err.message);
+});
 
 // -----------------------------------------------------------------------------
 // 2. Socket.IO Server Configuration
 // -----------------------------------------------------------------------------
 const io = new Server(httpServer, {
-  ...adapterOptions,
+  adapter: createAdapter(pubClient, subClient, {
+    streamMaxLen: RECOVERY_CONFIG.STREAM_MAX_LEN,
+    mMaxLenThreshold: RECOVERY_CONFIG.STREAM_M_MAX_LEN_THRESHOLD,
+    maxDisconnectionDuration: RECOVERY_CONFIG.MAX_DISCONNECTION_DURATION_MS
+  }),
   
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  },
+
   // FORCE Pure WebSockets (No HTTP Long Polling)
   transports: ["websocket"],
 
   // Connection State Recovery (v4.6+)
   connectionStateRecovery: {
     maxDisconnectionDuration: RECOVERY_CONFIG.MAX_DISCONNECTION_DURATION_MS,
-    skipMiddlewares: true
+    skipMiddlewares: false
   },
 
   // Payload byte limit
@@ -95,6 +95,7 @@ async function initKafkaConsumer() {
 
           if (eventData.roomId) {
             io.to(eventData.roomId).emit("new_message", eventData);
+            io.to(eventData.roomId).emit("NEW_MESSAGE", eventData);
           }
         } catch (err) {
           console.error("[Kafka Consumer Error] Failed to process message:", err.message);

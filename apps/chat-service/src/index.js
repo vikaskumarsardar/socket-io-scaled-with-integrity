@@ -1,8 +1,10 @@
 const express = require("express");
+const cors = require("cors");
 const { Pool } = require("pg");
 const { EVENT_TYPES, ROOMS, createOutboxPayload } = require("@app/shared");
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 
 // -----------------------------------------------------------------------------
@@ -99,7 +101,8 @@ app.post("/api/v1/messages", async (req, res) => {
       savedMessage.sequence_id,
       savedMessage.room_id,
       savedMessage.sender_id,
-      savedMessage.content
+      savedMessage.content,
+      req.body.sentAt
     );
 
     await client.query(
@@ -131,19 +134,53 @@ app.post("/api/v1/messages", async (req, res) => {
 // -----------------------------------------------------------------------------
 app.get("/api/v1/messages/sync", async (req, res) => {
   const sinceSeq = parseInt(req.query.since || "0", 10);
+  const beforeSeq = req.query.before ? parseInt(req.query.before, 10) : null;
   const roomId = req.query.roomId || ROOMS.GENERAL;
-  const limit = Math.min(parseInt(req.query.limit || "50", 10), 100);
+  const limit = Math.min(parseInt(req.query.limit || "50", 10), 500);
 
   try {
-    const result = await pool.query(
-      `SELECT id, sequence_id AS "sequenceId", room_id AS "roomId", 
-              sender_id AS "senderId", content, created_at AS "createdAt"
-       FROM messages 
-       WHERE room_id = $1 AND sequence_id > $2 
-       ORDER BY sequence_id ASC 
-       LIMIT $3`,
-      [roomId, sinceSeq, limit]
-    );
+    let query;
+    let queryParams;
+
+    if (beforeSeq !== null) {
+      // 1. Infinite Scroll Up: Fetch older history BEFORE beforeSeq
+      query = `
+        SELECT id, sequence_id AS "sequenceId", room_id AS "roomId", 
+               sender_id AS "senderId", content, created_at AS "createdAt"
+        FROM (
+          SELECT id, sequence_id, room_id, sender_id, content, created_at
+          FROM messages 
+          WHERE room_id = $1 AND sequence_id < $2
+          ORDER BY sequence_id DESC 
+          LIMIT $3
+        ) sub ORDER BY sequence_id ASC`;
+      queryParams = [roomId, beforeSeq, limit];
+    } else if (sinceSeq === 0) {
+      // 2. Initial Page Load: Fetch the LATEST 50 messages in the room
+      query = `
+        SELECT id, sequence_id AS "sequenceId", room_id AS "roomId", 
+               sender_id AS "senderId", content, created_at AS "createdAt"
+        FROM (
+          SELECT id, sequence_id, room_id, sender_id, content, created_at
+          FROM messages 
+          WHERE room_id = $1
+          ORDER BY sequence_id DESC 
+          LIMIT $2
+        ) sub ORDER BY sequence_id ASC`;
+      queryParams = [roomId, limit];
+    } else {
+      // 3. Incremental Catch-Up Sync: Fetch all missing messages after sinceSeq
+      query = `
+        SELECT id, sequence_id AS "sequenceId", room_id AS "roomId", 
+               sender_id AS "senderId", content, created_at AS "createdAt"
+        FROM messages 
+        WHERE room_id = $1 AND sequence_id > $2 
+        ORDER BY sequence_id ASC 
+        LIMIT $3`;
+      queryParams = [roomId, sinceSeq, 500];
+    }
+
+    const result = await pool.query(query, queryParams);
 
     console.log(`[REST Sync Query] roomId=${roomId}, since=${sinceSeq} -> Found ${result.rows.length} messages`);
 
