@@ -4,7 +4,8 @@
   "description": "Business Microservice implementing the Transactional Outbox Pattern with PostgreSQL",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "test": "node --test tests/unit/*.test.js"
   },
   "dependencies": {
     "@app/shared": "*",

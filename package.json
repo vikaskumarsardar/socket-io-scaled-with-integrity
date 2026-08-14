@@ -11,6 +11,10 @@
     "start:gateway": "npm run start --workspace=socket-gateway",
     "start:chat": "npm run start --workspace=chat-service",
     "start:client": "npm run start --workspace=client-demo",
+    "test": "node --test apps/*/tests/unit/*.test.js packages/*/tests/*.test.js",
+    "test:chat": "npm run test --workspace=chat-service",
+    "test:gateway": "npm run test --workspace=socket-gateway",
+    "test:shared": "npm run test --workspace=@app/shared",
     "dev:services": "concurrently \"npm run start:chat\" \"npm run start:gateway\"",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down"

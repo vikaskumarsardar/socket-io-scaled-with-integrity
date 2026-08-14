@@ -53,3 +53,35 @@ services:
       CONFIG_STORAGE_TOPIC: debezium_connect_configs
       OFFSET_STORAGE_TOPIC: debezium_connect_offsets
       STATUS_STORAGE_TOPIC: debezium_connect_status
+
+  debezium-init:
+    image: curlimages/curl:latest
+    container_name: mvp-debezium-init
+    depends_on:
+      - debezium
+    command: >
+      sh -c '
+        echo "Waiting for Debezium REST API..."
+        until curl -s http://debezium:8083/connectors; do
+          sleep 2
+        done
+        echo "Registering Postgres Outbox Connector..."
+        curl -i -X POST -H "Content-Type: application/json" --data '\''{
+          "name": "postgres-outbox-connector",
+          "config": {
+            "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+            "plugin.name": "pgoutput",
+            "tasks.max": "1",
+            "database.hostname": "postgres",
+            "database.port": "5432",
+            "database.user": "postgres",
+            "database.password": "postgrespassword",
+            "database.dbname": "chat_db",
+            "database.server.name": "dbserver1",
+            "topic.prefix": "dbserver1",
+            "table.include.list": "public.outbox",
+            "tombstones.on.delete": "false"
+          }
+        }'\'' http://debezium:8083/connectors
+      '
+

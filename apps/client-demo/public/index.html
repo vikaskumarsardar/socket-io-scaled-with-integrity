@@ -552,10 +552,12 @@
       try {
         const fetchSince = (forceAll || clientMessageMap.size === 0) ? 0 : lastSeenSeq;
         const res = await fetch(`${CHAT_SERVICE_URL}/api/v1/messages/sync?roomId=room_general&since=${fetchSince}`);
-        const data = await res.json();
+        const raw = await res.json();
+        const data = raw.data || raw;
         if (data.messages && Array.isArray(data.messages)) {
           data.messages.forEach(msg => renderMessage(msg));
         }
+
       } catch (err) {
         console.error("REST sync failed:", err);
       }

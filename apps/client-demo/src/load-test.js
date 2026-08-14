@@ -9,8 +9,9 @@
 
 const { io } = require("socket.io-client");
 
-const GATEWAY_URL = process.env.GATEWAY_URL || "http://localhost:3000";
-const CHAT_SERVICE_URL = process.env.CHAT_SERVICE_URL || "http://localhost:4000";
+const targetUrl = process.argv[2] || process.env.GATEWAY_URL || "http://localhost:3000";
+const GATEWAY_URL = targetUrl;
+const CHAT_SERVICE_URL = targetUrl;
 
 const NUM_CLIENTS = parseInt(process.env.NUM_CLIENTS || "20", 10);
 const NUM_MESSAGES = parseInt(process.env.NUM_MESSAGES || "50", 10);
@@ -41,23 +42,28 @@ async function runLoadTest() {
       });
 
       clientSocket.on("connect", () => {
+        clientSocket.emit("join_room", "room_general");
         sockets.push(clientSocket);
         resolve();
       });
 
-      clientSocket.on("new_message", (msg) => {
-        if (msg.content && msg.content.includes(testRunId)) {
+      const handleMessage = (msg) => {
+        if (msg && msg.content && msg.content.includes(testRunId)) {
           const key = msg.sequenceId || msg.id;
           receivedStats.set(key, (receivedStats.get(key) || 0) + 1);
 
-          if (msg.sentAt) {
-            const latency = Math.max(0, Date.now() - msg.sentAt);
+          const sentAt = msg.sentAt || (msg.payload && msg.payload.sentAt);
+          if (sentAt) {
+            const latency = Math.max(0, Date.now() - sentAt);
             latencies.push(latency);
           }
         }
-      });
+      };
+
+      clientSocket.on("new_message", handleMessage);
     });
   });
+
 
   await Promise.all(connectPromises);
   console.log(`✅ All ${sockets.length} WebSocket clients connected successfully!\n`);

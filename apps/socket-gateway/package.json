@@ -4,7 +4,8 @@
   "description": "Stateless Real-Time Socket.IO Gateway with Kafka Consumer & Redis Streams Recovery",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "test": "node --test tests/unit/*.test.js"
   },
   "dependencies": {
     "@app/shared": "*",
