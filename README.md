@@ -130,11 +130,12 @@ socket-scaled/
 
 The Kubernetes production deployment for this platform is packaged as a dedicated **Helm 3 Chart** supporting **GitOps (ArgoCD / Flux CD)**, **External Secrets Operator (ESO)**, and **Horizontal Pod Autoscaling (HPA)**.
 
-* 📦 **Infrastructure as Code Repository:** [microservices-mvp-helm](file:///home/user/Desktop/microservices-mvp/helm)
+* 📦 **Infrastructure as Code Repository:** [socket-io-scaled-with-integrity-deployments](https://github.com/vikaskumarsardar/socket-io-scaled-with-integrity-deployments)
 
 ```bash
 # Clone the dedicated Helm Infrastructure repository
-git clone <your-helm-repo-url> helm/
+git clone https://github.com/vikaskumarsardar/socket-io-scaled-with-integrity-deployments.git helm/
+
 
 # Lint Helm templates
 helm lint helm/
