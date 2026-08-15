@@ -83,8 +83,8 @@ function createMessageService(messageRepo = defaultMessageRepository) {
     async fetchSyncMessages({ roomId = ROOMS.GENERAL, sinceSeq = 0, beforeSeq = null, limit = DEFAULT_PAGE_LIMIT }) {
       const safeLimit = normalizePageLimit(limit);
 
-      const isOlderHistoryQuery = beforeSeq !== null;
-      const isInitialPageLoad = sinceSeq === 0;
+      const isOlderHistoryQuery = beforeSeq !== null && beforeSeq !== undefined;
+      const isInitialPageLoad = sinceSeq === 0 || sinceSeq === null || sinceSeq === undefined;
 
       let messages;
 

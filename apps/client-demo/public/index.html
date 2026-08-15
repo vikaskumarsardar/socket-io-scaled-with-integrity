@@ -550,7 +550,7 @@
     // Fetch Message History via REST API Sync (Initial Load & Catch-Up)
     async function fetchRestSync(forceAll = false) {
       try {
-        const fetchSince = (forceAll || clientMessageMap.size === 0) ? 0 : lastSeenSeq;
+        const fetchSince = forceAll ? 0 : (lastSeenSeq > 0 ? lastSeenSeq : 0);
         const res = await fetch(`${CHAT_SERVICE_URL}/api/v1/messages/sync?roomId=room_general&since=${fetchSince}`);
         const raw = await res.json();
         const data = raw.data || raw;
